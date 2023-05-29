@@ -4,7 +4,7 @@
 //
 //  Created by Joseph Langat on 27/05/2023.
 //
-
+import CoreML
 import SwiftUI
 
 struct ContentView: View {
@@ -12,29 +12,53 @@ struct ContentView: View {
     @State private var sleepAmount = 8.0
     @State private var wakeUp = Date.now
     @State private var coffeeAmount = 1
+    @State private var alertTitle = " "
+    @State private var alertMessage = " "
+    @State private var showingAlert = false
     var body: some View {
-        VStack(spacing: 20) {
-            Text("When do you want to wake up?")
-                .font(.headline)
-            DatePicker("Please enter a date", selection: $wakeUp, displayedComponents: .hourAndMinute)
-                .labelsHidden()
-            Text("Desired amount of sleep")
-                .font(.headline)
-            Stepper("\(sleepAmount.formatted()) hours", value: $sleepAmount, in: 4...12, step: 0.25)
-            Text("Daily coffee intake")
-                .font(.headline)
-            Stepper(coffeeAmount == 1 ? "1 Cup" : "\(coffeeAmount) cups", value: $coffeeAmount, in: 1...20)
-//            Text(Date.now, format: .dateTime.day().month().year())
-//            Text(Date.now.formatted(date: .long, time: .shortened))
-//            Text(Date.now.formatted(date: .long, time: .omitted))
+        NavigationView {
+            VStack(spacing: 20) {
+                Text("When do you want to wake up?")
+                    .font(.headline)
+                DatePicker("Please enter a date", selection: $wakeUp, displayedComponents: .hourAndMinute)
+                    .labelsHidden()
+                Text("Desired amount of sleep")
+                    .font(.headline)
+                Stepper("\(sleepAmount.formatted()) hours", value: $sleepAmount, in: 4...12, step: 0.25)
+                Text("Daily coffee intake")
+                    .font(.headline)
+                Stepper(coffeeAmount == 1 ? "1 Cup" : "\(coffeeAmount) cups", value: $coffeeAmount, in: 1...20)
+    //            Text(Date.now, format: .dateTime.day().month().year())
+    //            Text(Date.now.formatted(date: .long, time: .shortened))
+    //            Text(Date.now.formatted(date: .long, time: .omitted))
+            }
+            .navigationTitle("BetterRest")
+            .toolbar {
+                Button("Calculate", action: calculateBedTime)
+            }
         }
-        .navigationTitle("BetterRest")
-        .toolbar {
-            Button("Calculate", action: calculateBedTime)
+        .alert(alertTitle, isPresented: $showingAlert){
+            Button("OK") {}
+        } message: {
+            Text(alertMessage)
         }
     }
     func calculateBedTime() {
-        
+        do {
+            let config = MLModelConfiguration()
+            let model = try SleepCalculator(configuration: config)
+            let components = Calendar.current.dateComponents([.hour, .minute], from: wakeUp)
+            let hour = (components.hour ?? 0) * 60 * 60
+            let minute = (components.minute ?? 0) * 60
+            let prediction = try model.prediction(wake: Double(hour + minute), estimatedSleep: sleepAmount, coffee: Double(coffeeAmount))
+            let sleepTime = wakeUp - prediction.actualSleep
+            alertTitle = "Your ideal bedtime is:"
+            alertMessage = sleepTime.formatted(date: .omitted, time: .shortened)
+        } catch {
+            alertTitle = "Error"
+            alertMessage = "Sorry, there was a problem calculating your bedtime"
+        }
+        showingAlert = true
     }
     func trivialExample() {
        /* let now = Date.now
@@ -44,9 +68,9 @@ struct ContentView: View {
         components.hour = 8
         components.minute = 0
         let date = Calendar.current.date(from: components) ?? Date.now*/
-        let components = Calendar.current.dateComponents([.hour, .minute], from: Date.now)
-        let hour = components.hour ?? 0
-        let minutes = components.minute ?? 0
+//        let components = Calendar.current.dateComponents([.hour, .minute], from: Date.now)
+//        let hour = components.hour ?? 0
+//        let minutes = components.minute ?? 0
     }
 }
 
